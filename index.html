@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>SF3 Input Display</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { height: 100%; width: 100%; }
+
+body { margin-left: 0; }
+body.p2 { margin-left: auto; }
+
+body {
+  background: #111;
+  color: #ccc;
+  font-family: 'Cascadia Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 14px;
+  width: 280px;
+  min-height: 100%;
+  padding: 10px;
+  user-select: none;
+  position: relative;
+}
+
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #222;
+}
+.title { font-size: 12px; color: #555; letter-spacing: 2px; }
+.status { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #555; }
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #2a2a2a;
+  transition: background 0.2s;
+}
+.status-dot.on { background: #44ff66; box-shadow: 0 0 5px #44ff66; }
+
+
+/* ── Side toggle ── */
+.side-row { display: flex; gap: 4px; margin-bottom: 10px; }
+.side-btn {
+  flex: 1;
+  padding: 5px;
+  border: 1px solid #2a2a2a;
+  background: #1a1a1a;
+  color: #555;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: bold;
+  border-radius: 3px;
+  text-align: center;
+  transition: all 0.1s;
+}
+.side-btn.active { background: #1a3a6a; color: #88aaff; border-color: #3366cc; }
+
+/* ── Current input ── */
+.current-section {
+  background: #161616;
+  border-radius: 4px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.current-top { display: flex; align-items: center; gap: 16px; }
+
+.dir-img {
+  width: 48px; height: 48px;
+  flex-shrink: 0;
+  opacity: 0.12;
+  transition: transform 0.05s, opacity 0.05s;
+}
+.btns-section { display: flex; flex-direction: column; gap: 6px; }
+.btns-row { display: flex; gap: 6px; }
+.bc { width: 34px; height: 34px; opacity: 0.15; transition: opacity 0.05s; }
+
+/* ── History ── */
+.hist-header {
+  font-size: 14px;
+  color: #444;
+  letter-spacing: 2px;
+  margin-bottom: 5px;
+}
+.hist-list { display: flex; flex-direction: column; gap: 2px; }
+
+.hist-entry {
+  display: flex;
+  align-items: center;
+  padding: 3px 6px;
+  background: #141414;
+  border-radius: 2px;
+  gap: 6px;
+  border-left: 2px solid transparent;
+}
+.hist-entry.latest { background: #1c1c0e; border-left-color: #c8a020; }
+
+.hist-dir-img { width: 16px; height: 16px; flex-shrink: 0; }
+.hist-btns { flex: 1; display: flex; gap: 3px; align-items: center; flex-wrap: wrap; }
+.hist-btn-img { width: 20px; height: 20px; }
+
+.hist-dur {
+  font-family: inherit;
+  font-size: 14px;
+  color: #fff;
+  min-width: 32px;
+  flex-shrink: 0;
+}
+
+.no-gp {
+  padding: 20px 0;
+  text-align: center;
+  color: #3a3a3a;
+  font-size: 14px;
+  line-height: 2;
+}
+
+/* ── Settings ── */
+.settings-toggle {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #1e1e1e;
+  font-size: 13px;
+  color: #3a3a3a;
+  cursor: pointer;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.settings-toggle:hover { color: #777; }
+
+.settings-panel {
+  display: none;
+  margin-top: 8px;
+  background: #161616;
+  border-radius: 4px;
+  padding: 10px;
+}
+.settings-panel.open { display: block; }
+
+.map-title { font-size: 11px; color: #555; margin-bottom: 8px; letter-spacing: 1px; }
+.map-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 8px; }
+.map-row { display: flex; align-items: center; gap: 6px; }
+.map-label { font-size: 11px; font-weight: bold; width: 28px; }
+
+.map-btn {
+  flex: 1;
+  background: #1e1e1e;
+  border: 1px solid #2e2e2e;
+  color: #888;
+  padding: 3px 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  border-radius: 2px;
+  text-align: center;
+}
+.map-btn:hover { border-color: #555; }
+.map-btn.listening { border-color: #c8a020; color: #c8a020; animation: blink 0.5s infinite; }
+
+@keyframes blink { 50% { opacity: 0.4; } }
+
+.map-divider { grid-column: 1 / -1; border: none; border-top: 1px solid #222; margin: 2px 0; }
+
+.reset-btn {
+  width: 100%;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  color: #555;
+  padding: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  border-radius: 2px;
+}
+.reset-btn:hover { color: #999; border-color: #444; }
+
+.hint { font-size: 10px; color: #2e2e2e; margin-top: 8px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="title">INPUT DISPLAY_v0.1</span>
+  <div class="status">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">No gamepad</span>
+  </div>
+</div>
+
+<div class="side-row">
+  <button class="side-btn active" id="btn1P" onclick="setSide('1P')">1P</button>
+  <button class="side-btn" id="btn2P" onclick="setSide('2P')">2P</button>
+</div>
+
+<div class="current-section">
+  <div class="current-top">
+    <img src="./layout/inputhistory/input-up.png" class="dir-img" id="dirImg">
+
+    <div class="btns-section">
+      <div class="btns-row">
+        <img src="./layout/inputhistory/input-lp.png" class="bc" id="bc-LP">
+        <img src="./layout/inputhistory/input-mp.png" class="bc" id="bc-MP">
+        <img src="./layout/inputhistory/input-hp.png" class="bc" id="bc-HP">
+      </div>
+      <div class="btns-row">
+        <img src="./layout/inputhistory/input-lk.png" class="bc" id="bc-LK">
+        <img src="./layout/inputhistory/input-mk.png" class="bc" id="bc-MK">
+        <img src="./layout/inputhistory/input-hk.png" class="bc" id="bc-HK">
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="hist-header">HISTORY</div>
+<div class="hist-list" id="histList">
+  <div class="no-gp">搖桿連接後自動開始<br>插上搖桿並按任意鍵</div>
+</div>
+
+<div class="settings-toggle" onclick="toggleSettings()">⚙ BUTTON &amp; DIRECTION MAPPING</div>
+<div class="settings-panel" id="settingsPanel">
+  <div class="map-title">點選名稱 → 按搖桿對應鍵</div>
+  <div class="map-grid">
+    <div class="map-row">
+      <span class="map-label" style="color:#5588ff">LP</span>
+      <button class="map-btn" id="map-LP" onclick="startRemap('LP')"></button>
+    </div>
+    <div class="map-row">
+      <span class="map-label" style="color:#33cc66">LK</span>
+      <button class="map-btn" id="map-LK" onclick="startRemap('LK')"></button>
+    </div>
+    <div class="map-row">
+      <span class="map-label" style="color:#ffcc22">MP</span>
+      <button class="map-btn" id="map-MP" onclick="startRemap('MP')"></button>
+    </div>
+    <div class="map-row">
+      <span class="map-label" style="color:#ff8833">MK</span>
+      <button class="map-btn" id="map-MK" onclick="startRemap('MK')"></button>
+    </div>
+    <div class="map-row">
+      <span class="map-label" style="color:#ff4455">HP</span>
+      <button class="map-btn" id="map-HP" onclick="startRemap('HP')"></button>
+    </div>
+    <div class="map-row">
+      <span class="map-label" style="color:#cc44ff">HK</span>
+      <button class="map-btn" id="map-HK" onclick="startRemap('HK')"></button>
+    </div>
+    <hr class="map-divider">
+    <div class="map-row">
+      <span class="map-label" style="color:#88aaff">3P</span>
+      <button class="map-btn" id="map-3P" onclick="startRemap('3P')"></button>
+    </div>
+    <div class="map-row">
+      <span class="map-label" style="color:#66ee99">3K</span>
+      <button class="map-btn" id="map-3K" onclick="startRemap('3K')"></button>
+    </div>
+  </div>
+  <button class="reset-btn" onclick="resetMapping()">Reset buttons to defaults</button>
+
+  <div class="map-title" style="margin-top:10px; margin-bottom:6px">方向 MAPPING</div>
+  <div class="map-title" style="font-size:9px; color:#3a3a3a; margin-bottom:8px">點選後推搖桿對應方向</div>
+  <div class="map-grid">
+    <div class="map-row">
+      <span class="map-label">↑</span>
+      <button class="map-btn" id="dir-up" onclick="startDirRemap('up')"></button>
+    </div>
+    <div class="map-row">
+      <span class="map-label">↓</span>
+      <button class="map-btn" id="dir-down" onclick="startDirRemap('down')"></button>
+    </div>
+    <div class="map-row">
+      <span class="map-label">←</span>
+      <button class="map-btn" id="dir-left" onclick="startDirRemap('left')"></button>
+    </div>
+    <div class="map-row">
+      <span class="map-label">→</span>
+      <button class="map-btn" id="dir-right" onclick="startDirRemap('right')"></button>
+    </div>
+  </div>
+  <button class="reset-btn" onclick="resetDirMapping()">Reset directions to defaults</button>
+
+  <div class="map-title" style="margin-top:12px; margin-bottom:4px">AXIS MONITOR</div>
+  <div id="axisMonitor" style="font-size:11px; color:#666; line-height:1.9; white-space:pre">搖桿連接後顯示</div>
+  <div class="hint" style="margin-top:6px">推方向時看哪個 Axis 數值變化最大</div>
+</div>
+
+<script>
+const DEFAULT_MAPPING = { LP:0, MP:1, HP:2, LK:3, MK:4, HK:5, '3P':6, '3K':7 };
+const DIR_ROT  = { 1:225, 2:180, 3:135, 4:270, 5:0, 6:90, 7:315, 8:0, 9:45 };
+const BTN_SRC  = { LP:'input-lp', MP:'input-mp', HP:'input-hp', LK:'input-lk', MK:'input-mk', HK:'input-hk' };
+const IMG_BASE = './layout/inputhistory/';
+const DEFAULT_DIR_MAPPING = {
+  up:    { type: 'axis', index: 1, sign: -1 },
+  down:  { type: 'axis', index: 1, sign:  1 },
+  left:  { type: 'axis', index: 0, sign: -1 },
+  right: { type: 'axis', index: 0, sign:  1 },
+};
+const DIR_SYMBOLS   = { 1:'↙',2:'↓',3:'↘',4:'←',5:'●',6:'→',7:'↖',8:'↑',9:'↗' };
+const BTN_NAMES     = ['LP','MP','HP','LK','MK','HK'];
+const ALL_MAP_NAMES = [...BTN_NAMES, '3P', '3K'];
+const MAX_HISTORY   = 20;
+
+let side         = '1P';
+let gamepadIndex = -1;
+let buttonMapping = loadMapping();
+let dirMapping    = loadDirMapping();
+let history       = [];
+let currentEntry  = null;
+let remapping          = null;
+let dirRemapping       = null;
+let dirRemapCooldown   = 0;
+let dirRemapBaseline   = null;
+let dirRemapCandidate  = null; // { key, index, sign }
+let dirRemapHoldCount  = 0;
+let settingsOpen       = false;
+
+function loadMapping() {
+  try {
+    const s = JSON.parse(localStorage.getItem('sf3_mapping'));
+    if (s && typeof s === 'object') return { ...DEFAULT_MAPPING, ...s };
+  } catch(e) {}
+  return { ...DEFAULT_MAPPING };
+}
+function saveMapping() {
+  localStorage.setItem('sf3_mapping', JSON.stringify(buttonMapping));
+}
+
+function loadDirMapping() {
+  try {
+    const s = JSON.parse(localStorage.getItem('sf3_dir_mapping'));
+    if (s && typeof s === 'object') return { ...DEFAULT_DIR_MAPPING, ...s };
+  } catch(e) {}
+  return { ...DEFAULT_DIR_MAPPING };
+}
+function saveDirMapping() {
+  localStorage.setItem('sf3_dir_mapping', JSON.stringify(dirMapping));
+}
+
+function dirMappingLabel(m) {
+  if (m.type === 'axis')       return `Axis${m.index} ${m.sign > 0 ? '+' : '-'}`;
+  if (m.type === 'axis_value') return `Axis${m.index}≈${m.value.toFixed(2)}`;
+  return `btn ${m.index}`;
+}
+
+function startDirRemap(dir) {
+  if (dirRemapping === dir) {
+    dirRemapping = null; dirRemapCooldown = 0;
+    dirRemapBaseline = null; dirRemapCandidate = null; dirRemapHoldCount = 0;
+    updateDirMappingUI();
+    return;
+  }
+  dirRemapping = dir;
+  dirRemapCooldown = 90; // ~1.5s cooldown before detecting
+  remapping = null;
+  // snapshot current axis values as baseline
+  const gp = gamepadIndex >= 0 ? navigator.getGamepads()[gamepadIndex] : null;
+  dirRemapBaseline = gp ? Array.from(gp.axes) : null;
+  updateMappingUI();
+  updateDirMappingUI();
+}
+
+function resetDirMapping() {
+  dirMapping = {
+    up:    { type: 'axis', index: 1, sign: -1 },
+    down:  { type: 'axis', index: 1, sign:  1 },
+    left:  { type: 'axis', index: 0, sign: -1 },
+    right: { type: 'axis', index: 0, sign:  1 },
+  };
+  saveDirMapping();
+  dirRemapping = null; dirRemapCooldown = 0;
+  dirRemapBaseline = null; dirRemapCandidate = null; dirRemapHoldCount = 0;
+  updateDirMappingUI();
+}
+
+function updateDirMappingUI() {
+  const DIRS = ['up','down','left','right'];
+  for (const dir of DIRS) {
+    const el = document.getElementById('dir-' + dir);
+    if (!el) continue;
+    if (dir === dirRemapping) {
+      el.textContent = dirRemapCooldown > 0 ? 'Ready...' : 'Move!';
+      el.classList.add('listening');
+    } else {
+      el.textContent = dirMappingLabel(dirMapping[dir]);
+      el.classList.remove('listening');
+    }
+  }
+}
+
+function setSide(s) {
+  side = s;
+  document.getElementById('btn1P').classList.toggle('active', s === '1P');
+  document.getElementById('btn2P').classList.toggle('active', s === '2P');
+  document.body.classList.toggle('p2', s === '2P');
+}
+
+function toggleSettings() {
+  settingsOpen = !settingsOpen;
+  document.getElementById('settingsPanel').classList.toggle('open', settingsOpen);
+  updateMappingUI();
+  updateDirMappingUI();
+}
+
+function startRemap(name) {
+  remapping = name;
+  updateMappingUI();
+}
+
+function resetMapping() {
+  buttonMapping = { ...DEFAULT_MAPPING };
+  saveMapping();
+  remapping = null;
+  updateMappingUI();
+}
+
+function updateMappingUI() {
+  for (const name of ALL_MAP_NAMES) {
+    const el = document.getElementById('map-' + name);
+    if (!el) continue;
+    if (name === remapping) {
+      el.textContent = 'Press...';
+      el.classList.add('listening');
+    } else {
+      el.textContent = 'btn ' + buttonMapping[name];
+      el.classList.remove('listening');
+    }
+  }
+}
+
+window.addEventListener('gamepadconnected', e => {
+  if (gamepadIndex < 0) gamepadIndex = e.gamepad.index;
+});
+window.addEventListener('gamepaddisconnected', e => {
+  if (e.gamepad.index === gamepadIndex) {
+    gamepadIndex = -1;
+    currentEntry = null;
+    updateStatus(false);
+  }
+});
+
+function isDirActive(gp, m) {
+  if (m.type === 'axis') {
+    const v = gp.axes[m.index] ?? 0;
+    return m.sign > 0 ? v > 0.5 : v < -0.5;
+  }
+  if (m.type === 'axis_value') {
+    // Hat-as-single-axis: match by proximity to the recorded value
+    const v = gp.axes[m.index] ?? 0;
+    return Math.abs(v - m.value) < 0.22;
+  }
+  return gp.buttons[m.index]?.pressed ?? false;
+}
+
+function diagNumpad(n1, n2) {
+  const s = new Set([n1, n2]);
+  if (s.has(8) && s.has(6)) return 9;
+  if (s.has(8) && s.has(4)) return 7;
+  if (s.has(2) && s.has(6)) return 3;
+  if (s.has(2) && s.has(4)) return 1;
+  return 5;
+}
+
+function getHatDirection(gp) {
+  const axisIdx = dirMapping.up.index;
+  const v       = gp.axes[axisIdx] ?? 0;
+  const neutralV = dirMapping.up.neutral ?? 999;
+
+  // Near neutral sentinel value → no input
+  if (Math.abs(v - neutralV) < 1.5) return 5;
+
+  // Sort the 4 cardinal values ascending (= clockwise order for this encoding)
+  const cardinals = [
+    { numpad: 8, val: dirMapping.up.value },
+    { numpad: 6, val: dirMapping.right.value },
+    { numpad: 2, val: dirMapping.down.value },
+    { numpad: 4, val: dirMapping.left.value },
+  ].sort((a, b) => a.val - b.val);
+
+  // step45: half the gap between adjacent cardinals (= 45° step)
+  const step45 = (cardinals[1].val - cardinals[0].val) / 2;
+
+  // Auto-compute the 4 diagonal values as midpoints between adjacent cardinals
+  const diagonals = [
+    { val: (cardinals[0].val + cardinals[1].val) / 2, numpad: diagNumpad(cardinals[0].numpad, cardinals[1].numpad) },
+    { val: (cardinals[1].val + cardinals[2].val) / 2, numpad: diagNumpad(cardinals[1].numpad, cardinals[2].numpad) },
+    { val: (cardinals[2].val + cardinals[3].val) / 2, numpad: diagNumpad(cardinals[2].numpad, cardinals[3].numpad) },
+    { val: cardinals[3].val + step45,                 numpad: diagNumpad(cardinals[3].numpad, cardinals[0].numpad) },
+  ];
+
+  // Find the nearest position among all 8 directions
+  let best = null, bestDist = Infinity;
+  for (const pos of [...cardinals, ...diagonals]) {
+    const dist = Math.abs(v - pos.val);
+    if (dist < bestDist) { bestDist = dist; best = pos; }
+  }
+
+  return (best && bestDist < step45) ? best.numpad : 5;
+}
+
+function getDirection(gp) {
+  const m = dirMapping;
+  // Hat-as-single-axis mode: all 4 cardinals on the same axis with axis_value type
+  if (m.up?.type === 'axis_value' && m.down?.type === 'axis_value' &&
+      m.left?.type === 'axis_value' && m.right?.type === 'axis_value' &&
+      m.up.index === m.down.index && m.up.index === m.left.index && m.up.index === m.right.index) {
+    return getHatDirection(gp);
+  }
+
+  // Standard two-axis stick: combine individual directions
+  const up    = isDirActive(gp, m.up);
+  const down  = isDirActive(gp, m.down);
+  const left  = isDirActive(gp, m.left);
+  const right = isDirActive(gp, m.right);
+
+  if (down && left)  return 1;
+  if (down && right) return 3;
+  if (down)          return 2;
+  if (up   && left)  return 7;
+  if (up   && right) return 9;
+  if (up)            return 8;
+  if (left)          return 4;
+  if (right)         return 6;
+  return 5;
+}
+
+function getButtons(gp) {
+  const pressed = name => gp.buttons[buttonMapping[name]]?.pressed ?? false;
+
+  const p3 = pressed('3P');
+  const k3 = pressed('3K');
+
+  return {
+    LP: pressed('LP') || p3,
+    MP: pressed('MP') || p3,
+    HP: pressed('HP') || p3,
+    LK: pressed('LK') || k3,
+    MK: pressed('MK') || k3,
+    HK: pressed('HK') || k3,
+    p3,
+    k3,
+  };
+}
+
+function inputsEqual(a, b) {
+  if (!a || !b) return false;
+  if (a.dir !== b.dir) return false;
+  for (const n of BTN_NAMES) {
+    if (a.buttons[n] !== b.buttons[n]) return false;
+  }
+  return true;
+}
+
+function updateStatus(connected) {
+  document.getElementById('statusDot').classList.toggle('on', connected);
+  document.getElementById('statusText').textContent = connected ? 'Connected' : 'No gamepad';
+}
+
+function renderCurrent(input) {
+  const arrow = document.getElementById('dirImg');
+  if (input.dir === 5) {
+    arrow.style.opacity = '0.12';
+    arrow.style.transform = 'rotate(0deg)';
+  } else {
+    arrow.style.opacity = '1';
+    arrow.style.transform = `rotate(${DIR_ROT[input.dir]}deg)`;
+  }
+  for (const name of BTN_NAMES) {
+    document.getElementById('bc-' + name).style.opacity = input.buttons[name] ? '1' : '0.15';
+  }
+}
+
+function renderHistory() {
+  const list = document.getElementById('histList');
+  const entries = [];
+  if (currentEntry) entries.push({ ...currentEntry, isLatest: true });
+  for (const h of history) entries.push(h);
+
+  if (entries.length === 0) {
+    list.innerHTML = '<div class="no-gp">搖桿連接後自動開始<br>插上搖桿並按任意鍵</div>';
+    return;
+  }
+
+  const isP2 = side === '2P';
+  list.innerHTML = entries.slice(0, MAX_HISTORY).map(e => {
+    const rot      = DIR_ROT[e.input.dir] || 0;
+    const dirStyle = e.input.dir === 5 ? 'opacity:0.15' : `transform:rotate(${rot}deg)`;
+    const dirEl    = `<img src="${IMG_BASE}input-up.png" class="hist-dir-img" style="${dirStyle}">`;
+
+    const btnsHtml = BTN_NAMES
+      .filter(n => e.input.buttons[n])
+      .map(n => `<img src="${IMG_BASE}${BTN_SRC[n]}.png" class="hist-btn-img">`)
+      .join('');
+    // 1P: buttons flow left→right; 2P: buttons pushed right (toward direction)
+    const btnsEl = `<span class="hist-btns" style="justify-content:${isP2 ? 'flex-end' : 'flex-start'}">${btnsHtml}</span>`;
+
+    const durText = e.duration < 1000 ? e.duration + 'f' : '...';
+    // 1P: number right-aligned (toward direction); 2P: left-aligned (toward direction)
+    const durEl   = `<span class="hist-dur" style="text-align:${isP2 ? 'left' : 'right'}">${durText}</span>`;
+
+    // 1P: [dur] [dir] [btns]   2P: [btns] [dir] [dur]
+    const inner = isP2
+      ? `${btnsEl}${dirEl}${durEl}`
+      : `${durEl}${dirEl}${btnsEl}`;
+
+    return `<div class="hist-entry${e.isLatest ? ' latest' : ''}">${inner}</div>`;
+  }).join('');
+}
+
+function poll() {
+  if (gamepadIndex < 0) {
+    const gpads = navigator.getGamepads();
+    for (let i = 0; i < gpads.length; i++) {
+      if (gpads[i]) { gamepadIndex = i; break; }
+    }
+  }
+
+  const gp = gamepadIndex >= 0 ? navigator.getGamepads()[gamepadIndex] : null;
+
+  if (gp) {
+    updateStatus(true);
+
+    if (remapping !== null) {
+      for (let i = 0; i < gp.buttons.length; i++) {
+        if (gp.buttons[i]?.pressed) {
+          buttonMapping[remapping] = i;
+          saveMapping();
+          remapping = null;
+          updateMappingUI();
+          break;
+        }
+      }
+    }
+
+    if (dirRemapping !== null) {
+      if (dirRemapCooldown > 0) {
+        dirRemapCooldown--;
+        if (dirRemapCooldown === 0) updateDirMappingUI(); // switch label to "Move!"
+      } else {
+        // Find axis with largest movement from baseline
+        let maxDelta = 0, maxAxis = -1;
+        for (let i = 0; i < gp.axes.length; i++) {
+          const v     = gp.axes[i];
+          const base  = dirRemapBaseline ? (dirRemapBaseline[i] ?? 0) : 0;
+          const delta = v - base;
+          if (Math.abs(delta) > Math.abs(maxDelta)) { maxDelta = delta; maxAxis = i; }
+        }
+        let detected = false;
+        if (maxAxis >= 0 && Math.abs(maxDelta) > 0.3) {
+          // Must hold same axis+sign for 15 frames to confirm (prevents gate wobble)
+          const sign = maxDelta > 0 ? 1 : -1;
+          const key  = `${maxAxis}_${sign}`;
+          if (dirRemapCandidate?.key === key) {
+            dirRemapHoldCount++;
+          } else {
+            dirRemapCandidate = { key, index: maxAxis, sign };
+            dirRemapHoldCount = 1;
+          }
+          if (dirRemapHoldCount >= 15) {
+            const neutralVal = dirRemapBaseline ? (dirRemapBaseline[dirRemapCandidate.index] ?? 0) : 0;
+            const currVal    = gp.axes[dirRemapCandidate.index];
+            if (Math.abs(neutralVal) > 1.0) {
+              // Hat-as-single-axis: use value proximity matching
+              dirMapping[dirRemapping] = {
+                type: 'axis_value',
+                index: dirRemapCandidate.index,
+                value: parseFloat(currVal.toFixed(3)),
+                neutral: parseFloat(neutralVal.toFixed(3))
+              };
+            } else {
+              // Regular axis: use sign threshold
+              dirMapping[dirRemapping] = { type: 'axis', index: dirRemapCandidate.index, sign: dirRemapCandidate.sign };
+            }
+            detected = true;
+          }
+        } else {
+          // Axis not moving — reset hold, check buttons as fallback
+          dirRemapCandidate = null;
+          dirRemapHoldCount = 0;
+          for (let i = 0; i < gp.buttons.length && !detected; i++) {
+            if (gp.buttons[i]?.pressed) {
+              dirMapping[dirRemapping] = { type: 'button', index: i };
+              detected = true;
+            }
+          }
+        }
+        if (detected) {
+          saveDirMapping();
+          dirRemapping      = null;
+          dirRemapCooldown  = 0;
+          dirRemapBaseline  = null;
+          dirRemapCandidate = null;
+          dirRemapHoldCount = 0;
+          updateDirMappingUI();
+        }
+      }
+    }
+
+    const input = { dir: getDirection(gp), buttons: getButtons(gp) };
+
+    if (inputsEqual(input, currentEntry?.input)) {
+      currentEntry.duration++;
+    } else {
+      if (currentEntry) {
+        history.unshift(currentEntry);
+        if (history.length > MAX_HISTORY) history.pop();
+      }
+      currentEntry = { input, duration: 1 };
+    }
+
+    renderCurrent(input);
+    renderHistory();
+
+    if (settingsOpen) {
+      const mon = document.getElementById('axisMonitor');
+      if (mon) {
+        mon.textContent = Array.from(gp.axes)
+          .map((v, i) => `Axis${i}: ${v >= 0 ? ' ' : ''}${v.toFixed(2)}`)
+          .join('\n');
+      }
+    }
+  } else {
+    updateStatus(false);
+  }
+
+  requestAnimationFrame(poll);
+}
+
+updateMappingUI();
+updateDirMappingUI();
+requestAnimationFrame(poll);
+</script>
+</body>
+</html>
