@@ -27,7 +27,19 @@ A browser-based input display for Street Fighter III 3rd Strike. Shows your joys
 
 ## Button Mapping
 
-Open **BUTTON & DIRECTION MAPPING** at the bottom of the page. Click a button name, then press the corresponding button on your stick.
+Open **BUTTON & DIRECTION MAPPING** at the bottom of the page.
+
+**Buttons (LP / MP / HP / LK / MK / HK / 3P / 3K)**
+1. Click the button name
+2. Press the corresponding button on your stick — done
+
+**Directions (↑ ↓ ← →)**
+1. Click the direction you want to remap
+2. Wait for the label to change from `Ready...` to `Move!` (~1.5 seconds)
+3. Push the stick in that direction and **hold it** until confirmed
+4. Repeat for all 4 directions
+
+> If your stick uses a Hat Switch, the direction mapping still works the same way — just push and hold each direction one at a time.
 
 ## License
 
