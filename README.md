@@ -12,8 +12,9 @@ A browser-based input display for Street Fighter III 3rd Strike. Shows your joys
 ## How to Use
 
 1. Download the ZIP and extract
-2. Open `index.html` with Chrome
-3. Plug in your joystick and press any button
+2. Open the extracted folder (`sf3-input-display-main`)
+3. Open `index.html` with Chrome
+4. Plug in your joystick and press any button
 
 ## Features
 
