@@ -90,8 +90,21 @@ body {
   color: #444;
   letter-spacing: 2px;
   margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
-.hist-list { display: flex; flex-direction: column; gap: 2px; }
+.hist-rows-select {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  color: #555;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.hist-list { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
 
 .hist-entry {
   display: flex;
@@ -158,12 +171,16 @@ body {
   background: #1e1e1e;
   border: 1px solid #2e2e2e;
   color: #888;
-  padding: 3px 6px;
+  padding: 3px 4px;
   cursor: pointer;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 11px;
   border-radius: 2px;
   text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 .map-btn:hover { border-color: #555; }
 .map-btn.listening { border-color: #c8a020; color: #c8a020; animation: blink 0.5s infinite; }
@@ -186,12 +203,15 @@ body {
 .reset-btn:hover { color: #999; border-color: #444; }
 
 .hint { font-size: 10px; color: #2e2e2e; margin-top: 8px; line-height: 1.6; }
+.repo-link { color: #555; text-decoration: none; }
+.repo-link:hover { color: #ccc; }
+.sa-fail { color: #ff4444; font-weight: bold; font-size: 12px; flex-shrink: 0; margin-left: 2px; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <span class="title">INPUT DISPLAY_v0.1</span>
+  <span class="title">INPUT DISPLAY_v0.2</span>
   <div class="status">
     <div class="status-dot" id="statusDot"></div>
     <span id="statusText">No gamepad</span>
@@ -205,32 +225,55 @@ body {
 
 <div class="current-section">
   <div class="current-top">
-    <img src="./layout/inputhistory/input-up.png" class="dir-img" id="dirImg">
+    <img src="./layout/inputhistory/stick-center.png" class="dir-img" id="dirImg">
 
     <div class="btns-section">
       <div class="btns-row">
         <img src="./layout/inputhistory/input-lp.png" class="bc" id="bc-LP">
         <img src="./layout/inputhistory/input-mp.png" class="bc" id="bc-MP">
         <img src="./layout/inputhistory/input-hp.png" class="bc" id="bc-HP">
+        <img src="./layout/inputhistory/input-3p.png" class="bc" id="bc-3P">
       </div>
       <div class="btns-row">
         <img src="./layout/inputhistory/input-lk.png" class="bc" id="bc-LK">
         <img src="./layout/inputhistory/input-mk.png" class="bc" id="bc-MK">
         <img src="./layout/inputhistory/input-hk.png" class="bc" id="bc-HK">
+        <img src="./layout/inputhistory/input-3k.png" class="bc" id="bc-3K">
       </div>
     </div>
   </div>
 
 </div>
 
-<div class="hist-header">HISTORY</div>
+<div class="hist-header">
+  HISTORY
+  <select class="hist-rows-select" id="histRowsSelect" onchange="setHistRows(this.value)">
+    <option value="20">default</option>
+    <option value="25">+5</option>
+    <option value="30">+10</option>
+    <option value="35">+15</option>
+  </select>
+</div>
 <div class="hist-list" id="histList">
   <div class="no-gp">搖桿連接後自動開始<br>插上搖桿並按任意鍵</div>
 </div>
 
+<div class="settings-toggle" onclick="toggleSAPanel()">⚙ SUPER ART INPUT TRACKER</div>
+<div class="settings-panel" id="saPanel">
+  <div class="map-title">CHARACTER</div>
+  <div class="side-row" style="margin-bottom:8px;">
+    <button class="side-btn" id="sa-off" onclick="setSACharacter('NONE')">OFF</button>
+    <button class="side-btn" id="sa-gouki" onclick="setSACharacter('GOUKI')">GOUKI</button>
+  </div>
+  <div id="sa-info" style="font-size:11px;color:#555;line-height:1.8;display:none;">
+    SGS: LP → LP → FWD → LK → HP<br>
+    KKZ: D → D → D → PPP
+  </div>
+</div>
+
 <div class="settings-toggle" onclick="toggleSettings()">⚙ BUTTON &amp; DIRECTION MAPPING</div>
 <div class="settings-panel" id="settingsPanel">
-  <div class="map-title">點選名稱 → 按搖桿對應鍵</div>
+  <div class="map-title">Click button name, then press stick button</div>
   <div class="map-grid">
     <div class="map-row">
       <span class="map-label" style="color:#5588ff">LP</span>
@@ -256,7 +299,6 @@ body {
       <span class="map-label" style="color:#cc44ff">HK</span>
       <button class="map-btn" id="map-HK" onclick="startRemap('HK')"></button>
     </div>
-    <hr class="map-divider">
     <div class="map-row">
       <span class="map-label" style="color:#88aaff">3P</span>
       <button class="map-btn" id="map-3P" onclick="startRemap('3P')"></button>
@@ -268,8 +310,8 @@ body {
   </div>
   <button class="reset-btn" onclick="resetMapping()">Reset buttons to defaults</button>
 
-  <div class="map-title" style="margin-top:10px; margin-bottom:6px">方向 MAPPING</div>
-  <div class="map-title" style="font-size:9px; color:#3a3a3a; margin-bottom:8px">點選後推搖桿對應方向</div>
+  <div class="map-title" style="margin-top:10px; margin-bottom:6px">DIRECTION MAPPING</div>
+  <div class="map-title" style="font-size:9px; color:#3a3a3a; margin-bottom:8px">Click then push stick in direction</div>
   <div class="map-grid">
     <div class="map-row">
       <span class="map-label">↑</span>
@@ -290,9 +332,7 @@ body {
   </div>
   <button class="reset-btn" onclick="resetDirMapping()">Reset directions to defaults</button>
 
-  <div class="map-title" style="margin-top:12px; margin-bottom:4px">AXIS MONITOR</div>
-  <div id="axisMonitor" style="font-size:11px; color:#666; line-height:1.9; white-space:pre">搖桿連接後顯示</div>
-  <div class="hint" style="margin-top:6px">推方向時看哪個 Axis 數值變化最大</div>
+  <div class="hint" style="margin-top:6px"><a href="https://github.com/Juilin77/sf3-input-display" target="_blank" class="repo-link">github.com/Juilin77/sf3-input-display</a></div>
 </div>
 
 <script>
@@ -309,7 +349,7 @@ const DEFAULT_DIR_MAPPING = {
 const DIR_SYMBOLS   = { 1:'↙',2:'↓',3:'↘',4:'←',5:'●',6:'→',7:'↖',8:'↑',9:'↗' };
 const BTN_NAMES     = ['LP','MP','HP','LK','MK','HK'];
 const ALL_MAP_NAMES = [...BTN_NAMES, '3P', '3K'];
-const MAX_HISTORY   = 20;
+let displayRows = parseInt(localStorage.getItem('sf3_display_rows') || '20');
 
 let side         = '1P';
 let gamepadIndex = -1;
@@ -539,16 +579,23 @@ function getButtons(gp) {
 
   const p3 = pressed('3P');
   const k3 = pressed('3K');
+  const rawLP = pressed('LP');
+  const rawMP = pressed('MP');
+  const rawHP = pressed('HP');
+  const rawLK = pressed('LK');
+  const rawMK = pressed('MK');
+  const rawHK = pressed('HK');
 
   return {
-    LP: pressed('LP') || p3,
-    MP: pressed('MP') || p3,
-    HP: pressed('HP') || p3,
-    LK: pressed('LK') || k3,
-    MK: pressed('MK') || k3,
-    HK: pressed('HK') || k3,
+    LP: rawLP || p3,
+    MP: rawMP || p3,
+    HP: rawHP || p3,
+    LK: rawLK || k3,
+    MK: rawMK || k3,
+    HK: rawHK || k3,
     p3,
     k3,
+    rawLP, rawMP, rawHP, rawLK, rawMK, rawHK,
   };
 }
 
@@ -569,15 +616,23 @@ function updateStatus(connected) {
 function renderCurrent(input) {
   const arrow = document.getElementById('dirImg');
   if (input.dir === 5) {
-    arrow.style.opacity = '0.12';
+    arrow.src = `${IMG_BASE}stick-center.png`;
+    arrow.style.opacity = '1';
     arrow.style.transform = 'rotate(0deg)';
   } else {
+    arrow.src = `${IMG_BASE}input-up.png`;
     arrow.style.opacity = '1';
     arrow.style.transform = `rotate(${DIR_ROT[input.dir]}deg)`;
   }
-  for (const name of BTN_NAMES) {
-    document.getElementById('bc-' + name).style.opacity = input.buttons[name] ? '1' : '0.15';
-  }
+  const b = input.buttons;
+  document.getElementById('bc-LP').style.opacity = b.rawLP ? '1' : '0.15';
+  document.getElementById('bc-MP').style.opacity = b.rawMP ? '1' : '0.15';
+  document.getElementById('bc-HP').style.opacity = b.rawHP ? '1' : '0.15';
+  document.getElementById('bc-LK').style.opacity = b.rawLK ? '1' : '0.15';
+  document.getElementById('bc-MK').style.opacity = b.rawMK ? '1' : '0.15';
+  document.getElementById('bc-HK').style.opacity = b.rawHK ? '1' : '0.15';
+  document.getElementById('bc-3P').style.opacity = b.p3 ? '1' : '0.15';
+  document.getElementById('bc-3K').style.opacity = b.k3 ? '1' : '0.15';
 }
 
 function renderHistory() {
@@ -592,10 +647,11 @@ function renderHistory() {
   }
 
   const isP2 = side === '2P';
-  list.innerHTML = entries.slice(0, MAX_HISTORY).map(e => {
+  list.innerHTML = entries.slice(0, displayRows).map(e => {
     const rot      = DIR_ROT[e.input.dir] || 0;
-    const dirStyle = e.input.dir === 5 ? 'opacity:0.15' : `transform:rotate(${rot}deg)`;
-    const dirEl    = `<img src="${IMG_BASE}input-up.png" class="hist-dir-img" style="${dirStyle}">`;
+    const dirEl    = e.input.dir === 5
+      ? `<span style="width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;color:#ccc;font-size:12px;">·</span>`
+      : `<img src="${IMG_BASE}input-up.png" class="hist-dir-img" style="transform:rotate(${rot}deg)">`;
 
     const btnsHtml = BTN_NAMES
       .filter(n => e.input.buttons[n])
@@ -613,7 +669,8 @@ function renderHistory() {
       ? `${btnsEl}${dirEl}${durEl}`
       : `${durEl}${dirEl}${btnsEl}`;
 
-    return `<div class="hist-entry${e.isLatest ? ' latest' : ''}">${inner}</div>`;
+    const failMark = e.saFail ? '<span class="sa-fail">!</span>' : '';
+    return `<div class="hist-entry${e.isLatest ? ' latest' : ''}">${inner}${failMark}</div>`;
   }).join('');
 }
 
@@ -713,22 +770,18 @@ function poll() {
     } else {
       if (currentEntry) {
         history.unshift(currentEntry);
-        if (history.length > MAX_HISTORY) history.pop();
+        if (history.length > displayRows) history.pop();
       }
       currentEntry = { input, duration: 1 };
     }
 
+    if (prevInput) updateSADetection(input, prevInput);
+    prevInput = input;
+
     renderCurrent(input);
     renderHistory();
 
-    if (settingsOpen) {
-      const mon = document.getElementById('axisMonitor');
-      if (mon) {
-        mon.textContent = Array.from(gp.axes)
-          .map((v, i) => `Axis${i}: ${v >= 0 ? ' ' : ''}${v.toFixed(2)}`)
-          .join('\n');
-      }
-    }
+
   } else {
     updateStatus(false);
   }
@@ -736,8 +789,188 @@ function poll() {
   requestAnimationFrame(poll);
 }
 
+function setHistRows(val) {
+  displayRows = parseInt(val);
+  localStorage.setItem('sf3_display_rows', val);
+  document.getElementById('histList').style.maxHeight = (displayRows * 28 - 2) + 'px';
+  document.getElementById('histRowsSelect').value = val;
+}
+
+// ── SA Detection ──
+let saCharacter  = localStorage.getItem('sf3_sa_char') || 'NONE';
+let saPanelOpen  = false;
+let prevInput    = null;
+
+const sgs = { state: 'IDLE', frames: 0, entry: null, lp2Valid: false, markedEntries: [], pendingFail: null };
+const kkz = { state: 'IDLE', frames: 0, entry: null, markedEntries: [] };
+
+const SA_FWD_DIRS = new Set([1, 3, 4, 6, 7, 9]);
+
+function toggleSAPanel() {
+  saPanelOpen = !saPanelOpen;
+  document.getElementById('saPanel').classList.toggle('open', saPanelOpen);
+}
+
+function setSACharacter(char) {
+  saCharacter = char;
+  localStorage.setItem('sf3_sa_char', char);
+  sgs.state = 'IDLE'; sgs.frames = 0; sgs.entry = null; sgs.lp2Valid = false; sgs.markedEntries = []; sgs.pendingFail = null;
+  kkz.state = 'IDLE'; kkz.frames = 0; kkz.entry = null; kkz.markedEntries = [];
+  document.getElementById('sa-off').classList.toggle('active', char === 'NONE');
+  document.getElementById('sa-gouki').classList.toggle('active', char === 'GOUKI');
+  document.getElementById('sa-info').style.display = char === 'NONE' ? 'none' : 'block';
+}
+
+function clearSGSFailMarks() {
+  for (const e of sgs.markedEntries) { delete e.saFail; }
+  sgs.markedEntries = [];
+}
+
+function saMarkFail(m) {
+  if (m.entry) {
+    if (m === sgs) {
+      m.pendingFail = { entry: m.entry, countdown: 1 };
+    } else {
+      m.entry.saFail = true;
+      m.markedEntries.push(m.entry);
+    }
+  }
+  m.state = 'IDLE'; m.frames = 0; m.entry = null; m.lp2Valid = false;
+}
+
+function updateSGS(ev) {
+  if (sgs.pendingFail) {
+    sgs.pendingFail.countdown--;
+    if (sgs.pendingFail.countdown <= 0) {
+      sgs.pendingFail.entry.saFail = true;
+      sgs.markedEntries.push(sgs.pendingFail.entry);
+      sgs.pendingFail = null;
+    }
+  }
+  sgs.frames++;
+  switch (sgs.state) {
+    case 'IDLE':
+      if (ev.sgsLp) { sgs.state = 'WAIT_LP2'; sgs.frames = 0; }
+      break;
+    case 'WAIT_LP2':
+      if (ev.lpRelease)        { sgs.frames = 0; break; }
+      if (sgs.frames >= 11)    { sgs.state = 'IDLE'; }
+      else if (ev.sgsLp)        { sgs.state = 'WAIT_FWD'; sgs.frames = 0; sgs.entry = null; sgs.lp2Valid = true; }
+      break;
+    case 'WAIT_FWD':
+      if (ev.lpRelease) {
+        sgs.frames = 0;
+        if (sgs.lp2Valid && ev.isForward) { sgs.state = 'WAIT_LK'; sgs.frames = 0; }
+        else { sgs.entry = currentEntry; }
+        break;
+      }
+      if (sgs.frames >= 16)    { saMarkFail(sgs); }
+      else if (ev.fwd)          { sgs.state = 'WAIT_LK'; sgs.frames = 0; sgs.entry = null; }
+      break;
+    case 'WAIT_LK':
+      if (ev.fwdRelease)       { sgs.frames = 0; sgs.entry = currentEntry; }
+      if (sgs.frames >= 10)    { saMarkFail(sgs); }
+      else if (ev.sgsLk)        { sgs.state = 'WAIT_HP'; sgs.frames = 0; sgs.entry = null; }
+      break;
+    case 'WAIT_HP':
+      if (ev.sgsHp)            {
+        clearSGSFailMarks();
+        if (sgs.pendingFail) sgs.pendingFail = null;
+        sgs.state = 'IDLE'; sgs.frames = 0; sgs.entry = null; sgs.lp2Valid = false;
+        break;
+      }
+      if (ev.lkRelease)        { sgs.frames = 0; sgs.entry = currentEntry; break; }
+      if (sgs.frames >= 10)    { saMarkFail(sgs); }
+      break;
+  }
+}
+
+function updateKKZ(ev) {
+  kkz.frames++;
+  switch (kkz.state) {
+    case 'IDLE':
+      if (ev.down) { kkz.state = 'GOT_D1'; kkz.frames = 0; }
+      break;
+    case 'GOT_D1':
+      if (ev.downRelease)      { kkz.frames = 0; break; }
+      if (kkz.frames >= 8)     { kkz.state = 'IDLE'; }
+      else if (ev.down)         { kkz.state = 'GOT_D2'; kkz.frames = 0; kkz.entry = currentEntry; }
+      break;
+    case 'GOT_D2':
+      if (ev.downRelease)      { kkz.frames = 0; break; }
+      if (kkz.frames >= 8)     { saMarkFail(kkz); }
+      else if (ev.down)         { kkz.state = 'WAIT_PPP'; kkz.frames = 0; }
+      break;
+    case 'WAIT_PPP':
+      if (kkz.frames >= 8)     { saMarkFail(kkz); }
+      else if (ev.p3)           { kkz.state = 'IDLE'; kkz.frames = 0; kkz.entry = null; }
+      break;
+  }
+}
+
+function updateSADetection(input, prev) {
+  const ev = {
+    lp:   input.buttons.rawLP && !prev.buttons.rawLP,
+    sgsLp: input.buttons.rawLP && !prev.buttons.rawLP && !(
+      (input.buttons.rawMP && !prev.buttons.rawMP) ||
+      (input.buttons.rawHP && !prev.buttons.rawHP) ||
+      (input.buttons.rawLK && !prev.buttons.rawLK) ||
+      (input.buttons.rawMK && !prev.buttons.rawMK) ||
+      (input.buttons.rawHK && !prev.buttons.rawHK) ||
+      (input.buttons.p3   && !prev.buttons.p3)     ||
+      (input.buttons.k3   && !prev.buttons.k3)     ||
+      (input.dir !== 5 && input.dir !== prev.dir)  ||
+      ((prev.buttons.rawMP && !input.buttons.rawMP ? 1 : 0) +
+       (prev.buttons.rawHP && !input.buttons.rawHP ? 1 : 0) >= 2) ||
+      ((prev.buttons.rawLK && !input.buttons.rawLK ? 1 : 0) +
+       (prev.buttons.rawMK && !input.buttons.rawMK ? 1 : 0) +
+       (prev.buttons.rawHK && !input.buttons.rawHK ? 1 : 0) >= 2)
+    ),
+    lk:   input.buttons.rawLK && !prev.buttons.rawLK,
+    sgsLk: input.buttons.rawLK && !prev.buttons.rawLK && !(
+      (input.buttons.rawLP && !prev.buttons.rawLP) ||
+      (input.buttons.rawMP && !prev.buttons.rawMP) ||
+      (input.buttons.rawHP && !prev.buttons.rawHP) ||
+      (input.buttons.rawMK && !prev.buttons.rawMK) ||
+      (input.buttons.rawHK && !prev.buttons.rawHK) ||
+      (input.buttons.p3   && !prev.buttons.p3)     ||
+      (input.buttons.k3   && !prev.buttons.k3)     ||
+      (input.dir !== 5 && input.dir !== prev.dir)  ||
+      ((prev.buttons.rawLP && !input.buttons.rawLP ? 1 : 0) +
+       (prev.buttons.rawMP && !input.buttons.rawMP ? 1 : 0) +
+       (prev.buttons.rawHP && !input.buttons.rawHP ? 1 : 0) >= 2) ||
+      ((prev.buttons.rawMK && !input.buttons.rawMK ? 1 : 0) +
+       (prev.buttons.rawHK && !input.buttons.rawHK ? 1 : 0) >= 2)
+    ),
+    hp:   input.buttons.rawHP && !prev.buttons.rawHP,
+    sgsHp: input.buttons.rawHP && !prev.buttons.rawHP && !(
+      (input.buttons.rawLP && !prev.buttons.rawLP) ||
+      (input.buttons.rawMP && !prev.buttons.rawMP) ||
+      (input.buttons.rawLK && !prev.buttons.rawLK) ||
+      (input.buttons.rawMK && !prev.buttons.rawMK) ||
+      (input.buttons.rawHK && !prev.buttons.rawHK) ||
+      (input.buttons.p3   && !prev.buttons.p3)     ||
+      (input.buttons.k3   && !prev.buttons.k3)
+    ),
+    p3:   input.buttons.p3   && !prev.buttons.p3,
+    down:        input.dir === 2 && prev.dir !== 2,
+    downRelease: prev.dir === 2 && input.dir !== 2,
+    lpRelease:   prev.buttons.rawLP  && !input.buttons.rawLP,
+    lkRelease:   prev.buttons.rawLK  && !input.buttons.rawLK,
+    fwdRelease:  SA_FWD_DIRS.has(prev.dir) && !SA_FWD_DIRS.has(input.dir),
+    fwd:         SA_FWD_DIRS.has(input.dir) && !SA_FWD_DIRS.has(prev.dir),
+    isForward:   SA_FWD_DIRS.has(input.dir),
+  };
+  if (saCharacter === 'GOUKI') {
+    updateSGS(ev);
+    updateKKZ(ev);
+  }
+}
+
 updateMappingUI();
 updateDirMappingUI();
+setSACharacter(saCharacter);
+setHistRows(displayRows);
 requestAnimationFrame(poll);
 </script>
 </body>
