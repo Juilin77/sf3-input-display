@@ -14,48 +14,54 @@ A browser-based input display for Street Fighter III 3rd Strike. Shows your joys
 1. Download the ZIP and extract
 2. Open the extracted folder (`sf3-input-display-main`)
 3. Open `index.html` with Chrome
-4. Plug in your joystick and press any button
+4. Plug in your controller and press any button
 
 ## Features
 
 - Real-time direction + button display
 - Input history (last 20–35 entries, configurable)
 - 1P / 2P layout toggle
-- Super Art Input Tracker — detects SGS / KKZ attempts and marks failed inputs in history
+- Super Art Input Tracker — detects SA input attempts and marks failed inputs in history
 - Custom button mapping (click a button name, then press the stick)
 - Custom direction mapping (supports standard stick and Hat Switch)
 - Settings saved automatically in browser
 
 ## Super Art Input Tracker
 
-Open **SUPER ART INPUT TRACKER** and select your character.
+Open **⚙ SUPER ART INPUT TRACKER** and toggle the moves you want to track. Each toggle is independent.
 
-Currently supported: **GOUKI**
+| Toggle | Input | Notes |
+|--------|-------|-------|
+| LP·LP·F·LK·HP | LP → LP → FWD → LK → HP | SGS |
+| 222+PP | D → D → D → PP | KKZ (any 2+ punches) |
+| DQCF+P | 236236 + P | Must pass through direction 6 |
+| DQCF+K | 236236 + K | Must pass through direction 6 |
+| 720+P | Full 720° rotation + P | Exclusive with other trackers |
 
-| Move | Input |
-|------|-------|
-| Shun Goku Satsu (SGS) | LP → LP → FWD → LK → HP |
-| Kongou Kokuretsu Zan (KKZ) | D → D → D → PPP |
+When an attempt fails, a colored label appears on the history entry where the input went wrong:
 
-When an attempt fails, a red **!** appears on the history entry where the input went wrong.
-
-**SGS**
-- LP1 → LP2 too slow: no mark
-- LP2 → FWD too slow: ! on the neutral frame after LP2
-- FWD → LK too slow: ! on the neutral frame after FWD
-- LK → HP too slow: ! on the neutral frame after LK
-
-**KKZ**
-- D1 → D2 too slow: no mark
-- D2 or later too slow: ! on D2
+| Label | Meaning |
+|-------|---------|
+| `!SGS` | SGS sequence broken |
+| `!KKZ` | KKZ sequence broken |
+| `!DQCF+P` | DQCF+P motion incomplete |
+| `!DQCF+K` | DQCF+K motion incomplete |
+| `!720+P` | 720 rotation incomplete |
 
 If the move activates successfully, the **!** is automatically removed.
 
-> This is a 3S-inspired parser. Timing windows are close to arcade but not exact.
+### DQCF Notes
+- The QCF motion **must pass through direction 6** (pure forward). Stopping at diagonal 3 is detected as a failed attempt.
+- Button can be pressed slightly before or after the final direction — all timing is accepted.
+
+### 720+P Notes
+- **Exclusive toggle**: activating 720+P disables all other trackers.
+- Detection requires all 4 cardinal directions (2/4/6/8) within 11 frames, including direction 8 (up).
+- Trigger: any punch (LP / MP / HP / PP / PPP).
 
 ## Button Mapping
 
-Open **BUTTON & DIRECTION MAPPING** at the bottom of the page.
+Open **⚙ BUTTON & DIRECTION MAPPING** at the bottom of the page.
 
 **Buttons (LP / MP / HP / LK / MK / HK / 3P / 3K)**
 1. Click the button name

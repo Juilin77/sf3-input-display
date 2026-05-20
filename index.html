@@ -211,7 +211,7 @@ body {
 <body>
 
 <div class="header">
-  <span class="title">INPUT DISPLAY_v0.3</span>
+  <span class="title">INPUT DISPLAY_v0.4</span>
   <div class="status">
     <div class="status-dot" id="statusDot"></div>
     <span id="statusText">No gamepad</span>
@@ -255,22 +255,23 @@ body {
   </select>
 </div>
 <div class="hist-list" id="histList">
-  <div class="no-gp">搖桿連接後自動開始<br>插上搖桿並按任意鍵</div>
+  <div class="no-gp">Plug in your controller and press any button</div>
 </div>
 
 <div class="settings-toggle" onclick="toggleSAPanel()">⚙ SUPER ART INPUT TRACKER</div>
 <div id="sa-info" style="font-size:11px;color:#555;margin:4px 0 6px;"></div>
 <div class="settings-panel" id="saPanel">
-  <div class="map-title">CHARACTER</div>
-  <div class="side-row" style="margin-bottom:8px;">
-    <button class="side-btn" id="sa-char-GOUKI" onclick="setSACharacter('GOUKI')">GOUKI</button>
+  <div class="map-title">SA</div>
+  <div class="side-row" style="margin-bottom:6px;">
+    <button class="side-btn" id="sa-btn-sgs" onclick="toggleSGS()">LP·LP·F·LK·HP</button>
+    <button class="side-btn" id="sa-btn-kkz" onclick="toggleKKZ()">222+PP</button>
   </div>
-  <div id="sa-slot-row">
-    <div class="map-title" style="margin-top:6px;">SA</div>
-    <div class="side-row" style="margin-bottom:8px;">
-      <button class="side-btn" id="sa-btn-1" onclick="setSASlot(1)">DQCF+P</button>
-      <button class="side-btn" id="sa-btn-2" onclick="setSASlot(2)">DQCF+K</button>
-    </div>
+  <div class="side-row" style="margin-bottom:6px;">
+    <button class="side-btn" id="sa-btn-1" onclick="setSASlot(1)">DQCF+P</button>
+    <button class="side-btn" id="sa-btn-2" onclick="setSASlot(2)">DQCF+K</button>
+  </div>
+  <div class="side-row" style="margin-bottom:8px;">
+    <button class="side-btn" id="sa-btn-720p" onclick="toggle720P()">720+P</button>
   </div>
 </div>
 
@@ -645,7 +646,7 @@ function renderHistory() {
   for (const h of history) entries.push(h);
 
   if (entries.length === 0) {
-    list.innerHTML = '<div class="no-gp">搖桿連接後自動開始<br>插上搖桿並按任意鍵</div>';
+    list.innerHTML = '<div class="no-gp">Plug in your controller and press any button</div>';
     return;
   }
 
@@ -779,6 +780,7 @@ function poll() {
     }
 
     if (prevInput) updateSADetection(input, prevInput);
+    frameCount++;
     prevInput = input;
 
     renderCurrent(input);
@@ -810,14 +812,16 @@ const CHARACTERS = {
   }
 };
 
-const SA_MOT_WINDOW = 20; // TODO: adjust after testing
-const SA_BTN_WINDOW = 10; // TODO: adjust after testing
+const SA_MOT_WINDOW = 10; // confirmed from 3s-decomp cmd_data.c
+const SA_BTN_WINDOW = 10; // confirmed from 3s-decomp cmd_data.c
 
 const isDownDir = d => d === 1 || d === 2 || d === 3;
 const isFwdDir  = d => d === 3 || d === 6 || d === 9;
 const isBackDir = d => d === 1 || d === 4 || d === 7;
 
-let saCharacter  = localStorage.getItem('sf3_sa_char') || 'NONE';
+let sgsActive    = localStorage.getItem('sf3_sgs') === 'true';
+let kkzActive    = localStorage.getItem('sf3_kkz') === 'true';
+let sa720pActive = localStorage.getItem('sf3_720p') === 'true';
 let saSlot       = parseInt(localStorage.getItem('sf3_sa_slot') || '0');
 let saPanelOpen  = false;
 let prevInput    = null;
@@ -827,6 +831,9 @@ const kkz = { state: 'IDLE', frames: 0, entry: null, markedEntries: [], type: 'K
 const saMotQCF = { state: 'IDLE', frames: 0, entry: null, markedEntries: [], type: 'DQCF', sawFull: false };
 const saMotQCB = { state: 'IDLE', frames: 0, entry: null, markedEntries: [], type: 'DQCF', sawFull: false };
 let saMotPendingSuccess = false;
+let frameCount = 0;
+const cardinal720Buffer = [];
+const sa720markedEntries = [];
 
 const SA_FWD_DIRS = new Set([1, 3, 4, 6, 7, 9]);
 
@@ -880,18 +887,56 @@ function updateSAMot(m, enterDown, enterSide, btnPressed, isFullDir) {
 }
 
 
-function setSACharacter(char) {
-  saCharacter = saCharacter === char ? 'NONE' : char;
-  localStorage.setItem('sf3_sa_char', saCharacter);
-  sgs.state='IDLE'; sgs.frames=0; sgs.entry=null; sgs.lp2Valid=false; sgs.markedEntries=[]; sgs.pendingFail=null;
-  kkz.state='IDLE'; kkz.frames=0; kkz.entry=null; kkz.markedEntries=[];
-  document.getElementById('sa-char-GOUKI')?.classList.toggle('active', saCharacter==='GOUKI');
+function deactivate720P() {
+  if (!sa720pActive) return;
+  sa720pActive = false;
+  localStorage.setItem('sf3_720p', false);
+  document.getElementById('sa-btn-720p')?.classList.remove('active');
+}
+
+function toggleSGS() {
+  sgsActive = !sgsActive;
+  localStorage.setItem('sf3_sgs', sgsActive);
+  if (sgsActive) deactivate720P();
+  else { sgs.state='IDLE'; sgs.frames=0; sgs.entry=null; sgs.lp2Valid=false; sgs.markedEntries=[]; sgs.pendingFail=null; }
+  document.getElementById('sa-btn-sgs')?.classList.toggle('active', sgsActive);
+  updateSAInfo();
+}
+
+function toggleKKZ() {
+  kkzActive = !kkzActive;
+  localStorage.setItem('sf3_kkz', kkzActive);
+  if (kkzActive) deactivate720P();
+  else { kkz.state='IDLE'; kkz.frames=0; kkz.entry=null; kkz.markedEntries=[]; }
+  document.getElementById('sa-btn-kkz')?.classList.toggle('active', kkzActive);
+  updateSAInfo();
+}
+
+function toggle720P() {
+  sa720pActive = !sa720pActive;
+  localStorage.setItem('sf3_720p', sa720pActive);
+  cardinal720Buffer.length = 0;
+  for (const e of sa720markedEntries) delete e.saFail;
+  sa720markedEntries.length = 0;
+  if (sa720pActive) {
+    sgsActive = false; localStorage.setItem('sf3_sgs', false);
+    sgs.state='IDLE'; sgs.frames=0; sgs.entry=null; sgs.lp2Valid=false; sgs.markedEntries=[]; sgs.pendingFail=null;
+    kkzActive = false; localStorage.setItem('sf3_kkz', false);
+    kkz.state='IDLE'; kkz.frames=0; kkz.entry=null; kkz.markedEntries=[];
+    saSlot = 0; localStorage.setItem('sf3_sa_slot', 0);
+    saMotSuccess(saMotQCF); saMotSuccess(saMotQCB);
+    document.getElementById('sa-btn-sgs')?.classList.remove('active');
+    document.getElementById('sa-btn-kkz')?.classList.remove('active');
+    for (let i=1; i<=2; i++) document.getElementById('sa-btn-'+i)?.classList.remove('active');
+  }
+  document.getElementById('sa-btn-720p')?.classList.toggle('active', sa720pActive);
   updateSAInfo();
 }
 
 function setSASlot(slot) {
   saSlot = saSlot === slot ? 0 : slot;
   localStorage.setItem('sf3_sa_slot', saSlot);
+  if (saSlot > 0) deactivate720P();
   saMotSuccess(saMotQCF); saMotSuccess(saMotQCB);
   for (let i=1; i<=2; i++) document.getElementById('sa-btn-'+i)?.classList.toggle('active', i===saSlot);
   updateSAInfo();
@@ -900,14 +945,16 @@ function setSASlot(slot) {
 function updateSAInfo() {
   const el = document.getElementById('sa-info');
   if (!el) return;
-  const active = [];
-  if (saCharacter === 'GOUKI') { active.push('SGS', 'KKZ'); }
-  if (saSlot === 1) active.push('DQCF+P');
-  if (saSlot === 2) active.push('DQCF+K');
-  if (active.length === 0) {
+  const lines = [];
+  const line1 = [sgsActive ? 'LP·LP·F·LK·HP' : '', kkzActive ? '222+PP' : ''].filter(Boolean);
+  if (line1.length) lines.push('Tracking: ' + line1.join(' · '));
+  if (saSlot === 1) lines.push('Tracking: DQCF+P');
+  if (saSlot === 2) lines.push('Tracking: DQCF+K');
+  if (sa720pActive) lines.push('Tracking: 720+P');
+  if (lines.length === 0) {
     el.style.display = 'none';
   } else {
-    el.textContent = 'Tracking: ' + active.join(' · ');
+    el.innerHTML = lines.join('<br>');
     el.style.display = '';
   }
 }
@@ -955,12 +1002,12 @@ function updateSGS(ev) {
         else { sgs.entry = currentEntry; }
         break;
       }
-      if (sgs.frames >= 16)    { saMarkFail(sgs); }
+      if (sgs.frames >= 11)    { saMarkFail(sgs); }
       else if (ev.fwd)          { sgs.state = 'WAIT_LK'; sgs.frames = 0; sgs.entry = null; }
       break;
     case 'WAIT_LK':
       if (ev.fwdRelease)       { sgs.frames = 0; sgs.entry = currentEntry; }
-      if (sgs.frames >= 10)    { saMarkFail(sgs); }
+      if (sgs.frames >= 15)    { saMarkFail(sgs); }
       else if (ev.sgsLk)        { sgs.state = 'WAIT_HP'; sgs.frames = 0; sgs.entry = null; }
       break;
     case 'WAIT_HP':
@@ -971,7 +1018,7 @@ function updateSGS(ev) {
         break;
       }
       if (ev.lkRelease)        { sgs.frames = 0; sgs.entry = currentEntry; break; }
-      if (sgs.frames >= 10)    { saMarkFail(sgs); }
+      if (sgs.frames >= 11)    { saMarkFail(sgs); }
       break;
   }
 }
@@ -984,18 +1031,69 @@ function updateKKZ(ev) {
       break;
     case 'GOT_D1':
       if (ev.downRelease)      { kkz.frames = 0; break; }
-      if (kkz.frames >= 8)     { kkz.state = 'IDLE'; }
+      if (kkz.frames >= 8)      { kkz.state = 'IDLE'; }
       else if (ev.down)         { kkz.state = 'GOT_D2'; kkz.frames = 0; kkz.entry = currentEntry; }
       break;
     case 'GOT_D2':
       if (ev.downRelease)      { kkz.frames = 0; break; }
-      if (kkz.frames >= 8)     { saMarkFail(kkz); }
+      if (kkz.frames >= 8)      { saMarkFail(kkz); }
       else if (ev.down)         { kkz.state = 'WAIT_PPP'; kkz.frames = 0; }
       break;
     case 'WAIT_PPP':
-      if (kkz.frames >= 8)     { saMarkFail(kkz); }
-      else if (ev.p3)           { kkz.state = 'IDLE'; kkz.frames = 0; kkz.entry = null; }
+      if (kkz.frames >= 11)     { saMarkFail(kkz); }
+      else if (ev.pp)            { kkz.state = 'IDLE'; kkz.frames = 0; kkz.entry = null; }
       break;
+  }
+}
+
+const CARD720 = [2, 4, 6, 8];
+
+function check720CondB(buf) {
+  const seen = new Set();
+  let x = null, splitIdx = -1;
+  for (let i = 0; i < buf.length; i++) {
+    seen.add(buf[i].dir);
+    if (seen.size === 4) { x = buf[i].dir; splitIdx = i; break; }
+  }
+  if (splitIdx === -1) return false;
+  const need = CARD720.filter(d => d !== x);
+  const after = new Set();
+  for (let i = splitIdx + 1; i < buf.length; i++) {
+    if (need.includes(buf[i].dir)) after.add(buf[i].dir);
+  }
+  return need.every(d => after.has(d));
+}
+
+function update720P(ev, input, prev) {
+  // Track new cardinal direction entries
+  if (CARD720.includes(input.dir) && input.dir !== prev.dir) {
+    cardinal720Buffer.push({ dir: input.dir, f: frameCount });
+  }
+  // Prune entries older than 11 frames
+  while (cardinal720Buffer.length && frameCount - cardinal720Buffer[0].f > 11) {
+    cardinal720Buffer.shift();
+  }
+  // Check on punch press
+  if (!ev.btnP) return;
+  const buf = cardinal720Buffer;
+  const unique = new Set(buf.map(e => e.dir));
+  // Pre-filter: ≥3 unique cardinals and 8 (up) must be present
+  if (unique.size < 3 || !unique.has(8)) return;
+  // Condition A
+  const cnt = {2:0,4:0,6:0,8:0};
+  for (const e of buf) cnt[e.dir]++;
+  const condA = cnt[2]>=2 && cnt[4]>=2 && cnt[6]>=2 && cnt[8]>=2;
+  // Condition B
+  const condB = check720CondB(buf);
+  if (condA || condB) {
+    for (const e of sa720markedEntries) delete e.saFail;
+    sa720markedEntries.length = 0;
+    cardinal720Buffer.length = 0;
+  } else {
+    if (currentEntry) {
+      currentEntry.saFail = '720+P';
+      sa720markedEntries.push(currentEntry);
+    }
   }
 }
 
@@ -1044,6 +1142,11 @@ function updateSADetection(input, prev) {
       (input.buttons.k3   && !prev.buttons.k3)
     ),
     p3:   input.buttons.p3   && !prev.buttons.p3,
+    pp: (() => {
+      const newP = (input.buttons.rawLP && !prev.buttons.rawLP) || (input.buttons.rawMP && !prev.buttons.rawMP) || (input.buttons.rawHP && !prev.buttons.rawHP) || (input.buttons.p3 && !prev.buttons.p3);
+      const count = (input.buttons.rawLP ? 1:0) + (input.buttons.rawMP ? 1:0) + (input.buttons.rawHP ? 1:0);
+      return newP && (count >= 2 || input.buttons.p3);
+    })(),
     btnP: (input.buttons.rawLP && !prev.buttons.rawLP) || (input.buttons.rawMP && !prev.buttons.rawMP) || (input.buttons.rawHP && !prev.buttons.rawHP) || (input.buttons.p3 && !prev.buttons.p3),
     btnK: (input.buttons.rawLK && !prev.buttons.rawLK) || (input.buttons.rawMK && !prev.buttons.rawMK) || (input.buttons.rawHK && !prev.buttons.rawHK) || (input.buttons.k3 && !prev.buttons.k3),
     dirEnterDown: isDownDir(input.dir) && !isDownDir(prev.dir),
@@ -1057,10 +1160,9 @@ function updateSADetection(input, prev) {
     fwd:         SA_FWD_DIRS.has(input.dir) && !SA_FWD_DIRS.has(prev.dir),
     isForward:   SA_FWD_DIRS.has(input.dir),
   };
-  if (saCharacter === 'GOUKI') {
-    updateSGS(ev);
-    updateKKZ(ev);
-  }
+  if (sgsActive) updateSGS(ev);
+  if (kkzActive) updateKKZ(ev);
+  if (sa720pActive) update720P(ev, input, prev);
   if (saSlot > 0) {
     const sa = CHARACTERS['GOUKI'].sa[saSlot-1];
     const btnPressed = sa.button === 'P' ? ev.btnP : ev.btnK;
@@ -1079,9 +1181,11 @@ function updateSADetection(input, prev) {
 updateMappingUI();
 updateDirMappingUI();
 const _savedSlot = saSlot;
-document.getElementById('sa-char-GOUKI')?.classList.toggle('active', saCharacter === 'GOUKI');
+document.getElementById('sa-btn-sgs')?.classList.toggle('active', sgsActive);
+document.getElementById('sa-btn-kkz')?.classList.toggle('active', kkzActive);
+document.getElementById('sa-btn-720p')?.classList.toggle('active', sa720pActive);
 updateSAInfo();
-if (_savedSlot > 0 && saCharacter !== 'NONE') setSASlot(_savedSlot);
+if (_savedSlot > 0) setSASlot(_savedSlot);
 setHistRows(displayRows);
 requestAnimationFrame(poll);
 </script>
